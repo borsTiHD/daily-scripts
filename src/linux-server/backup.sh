@@ -83,8 +83,7 @@ perform_backup() {
     return 0
 }
 
-# Function to cleanup old backu
-ps on FTP server, keeping only the newest x backups
+# Function to cleanup old backups on FTP server, keeping only the newest x backups
 cleanup_old_backups() {
 
     # TODO: Implement cleanup using lftp - NOT WORKING RIGHT NOW!!!
