@@ -1,10 +1,17 @@
 #!/bin/bash
 ####################################
 #
+# Version: 1.0
+# Author: borsTiHD
+#
+# Description:
 # Backup to FTP server script with Telegram notification.
 # Create script in /usr/local/bin/backup.sh
 # Make executable with 'chmod +x /usr/local/bin/backup.sh'
 #
+# Required packages: curl, tar
+#
+# Usage:
 # Add cronjob with 'crontab -e'
 # Example: Run every day at 3am
 # 0 3 * * * /usr/local/bin/backup.sh
@@ -23,6 +30,11 @@ excluded_items=(
     "/opt/sinusbot/data/store/*"
     "/opt/sinusbot/TeamSpeak3-Client-linux_amd64/*"
     "/opt/sinusbot/TeamSpeak3-Client-linux_amd64-3.5.6.run"
+)
+
+# Array of Docker volumes to backup
+volumes_to_backup=(
+    "p08wsso0swko4sgsc0oco4gc_server-data"
 )
 
 # FTP server settings
@@ -110,6 +122,34 @@ cleanup_old_backups() {
 # EOF
 }
 
+# Function to backup Docker Compose volume
+backup_docker_volume() {
+    local volume_name=$1
+    local day=$(date +%Y-%m-%d)
+    local backup_file_name="${volume_name}-backup-${day}.tar.gz"
+
+    # Create temporary directory for storing the backup
+    local tmp_dir=$(mktemp -d)
+    trap "rm -rf $tmp_dir" EXIT
+
+    echo "Starting backup for volume: $volume_name..."
+    docker run --rm -v ${volume_name}:/data -v $tmp_dir:/backup alpine tar czf /backup/${backup_file_name} -C /data .
+
+    if [ $? -eq 0 ]; then
+        echo "Backup for volume $volume_name completed successfully."
+        send_telegram_notification "[F4P] - Backup for volume $volume_name completed successfully - [✅]"
+    else
+        echo "Error: Failed to backup volume $volume_name."
+        send_telegram_notification "[F4P] - Failed to backup volume $volume_name - [❌]"
+        return 1
+    fi
+
+    # Upload the backup to FTP server
+    curl -s -T "$tmp_dir/$backup_file_name" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { echo "Error: Failed to upload backup to FTP server."; return 1; }
+
+    return 0
+}
+
 # Perform backup
 perform_backup "$ftp_server" "$ftp_user" "$ftp_password" "$ftp_directory" && \
     send_telegram_notification "[F4P] - Backup uploaded successfully - [✅]" || \
@@ -119,6 +159,11 @@ perform_backup "$ftp_server" "$ftp_user" "$ftp_password" "$ftp_directory" && \
 # cleanup_old_backups "$ftp_server" "$ftp_user" "$ftp_password" "$ftp_directory" "$num_backups_to_keep" && \
 #     send_telegram_notification "[F4P] - Old backups cleanup successful - [✅]" || \
 #     send_telegram_notification "[F4P] - Failed to cleanup old backups - [❌]"
+
+# Perform Docker Compose volume backups
+for volume in "${volumes_to_backup[@]}"; do
+    backup_docker_volume "$volume"
+done
 
 # Print end status message
 echo
