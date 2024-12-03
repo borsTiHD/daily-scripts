@@ -35,6 +35,7 @@ excluded_items=(
 # Array of Docker volumes to backup
 volumes_to_backup=(
     "p08wsso0swko4sgsc0oco4gc_server-data"
+    "fcowgowkw4k4wk8ko880084g_terraria-tmodloader"
 )
 
 # FTP server settings
@@ -162,7 +163,9 @@ perform_backup "$ftp_server" "$ftp_user" "$ftp_password" "$ftp_directory" && \
 
 # Perform Docker Compose volume backups
 for volume in "${volumes_to_backup[@]}"; do
-    backup_docker_volume "$volume"
+    backup_docker_volume "$volume" && \
+        send_telegram_notification "[F4P] - $volume uploaded successfully - [✅]" || \
+        send_telegram_notification "[F4P] - Failed to upload $volume - [❌]"
 done
 
 # Print end status message
