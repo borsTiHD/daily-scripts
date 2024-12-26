@@ -263,14 +263,16 @@ cleanup_old_backups() {
     # Delete old backup files from FTP server
     failed_deleted_files=() # Array to store failed deleted files
     for file in $files_to_delete; do
-        curl -s --user $ftp_user:$ftp_password ftp://$ftp_server/$ftp_directory/$file -Q "DELE $file"
+        full_path="$ftp_directory/$file"
+        response=$(curl -s --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $file")
 
-        if [ $? -eq 0 ]; then
+        if [ $? -ne 0 ]; then
             log_message "${log_levels[1]}" "[✅] Deleted backup file: $file"
             if [ "$telegram_verbose" = true ]; then
                 send_telegram_notification "Deleted backup file [✅]: $file"
             fi
         else
+            log_message "${log_levels[3]}" "[❌] Error response: $response"
             log_message "${log_levels[3]}" "[❌] Error: Failed to delete backup file: $file"
             if [ "$telegram_verbose" = true ]; then
                 send_telegram_notification "Failed to delete backup file [❌]: $file"
