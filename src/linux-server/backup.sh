@@ -1,7 +1,7 @@
 #!/bin/bash
 ####################################
 #
-# Version: 1.0
+# Version: 1.1
 # Author: borsTiHD
 #
 # Description:
@@ -16,40 +16,43 @@
 # Example: Run every day at 3am
 # 0 3 * * * /usr/local/bin/backup.sh
 #
+# Note:
+# This script requires a backup.env or .env file with the necessary environment variables.
+# You can use the provided backup.env.example as a template.
+#
 ####################################
 
+# Load environment variables from backup.env or .env file
+if [ -f backup.env ]; then
+    source backup.env
+elif [ -f .env ]; then
+    source .env
+else
+    echo "backup.env or .env file not found!"
+    exit 1
+fi
+
 # Directories to backup (add or remove directories as needed)
-backup_directories=(
-    "/opt/sinusbot"
-    "/home/teamspeak/teamspeak3-server_linux_amd64"
-    "/home/steam/PalworldBackup"
-)
+backup_directories=(${BACKUP_DIRECTORIES//,/ })
 
 # Excluded directories and files (add or remove exclusions as needed)
-excluded_items=(
-    "/opt/sinusbot/data/store/*"
-    "/opt/sinusbot/TeamSpeak3-Client-linux_amd64/*"
-    "/opt/sinusbot/TeamSpeak3-Client-linux_amd64-3.5.6.run"
-)
+excluded_items=(${EXCLUDED_ITEMS//,/ })
 
 # Array of Docker volumes to backup
-volumes_to_backup=(
-    "p08wsso0swko4sgsc0oco4gc_server-data"
-    "fcowgowkw4k4wk8ko880084g_terraria-tmodloader"
-)
+docker_volumes_to_backup=(${DOCKER_VOLUMES_TO_BACKUP//,/ })
 
 # FTP server settings
-ftp_server="ftp.example.com"
-ftp_user="username"
-ftp_password="password"
-ftp_directory="/backup/freaks4posts"
+ftp_server="$FTP_SERVER"
+ftp_user="$FTP_USER"
+ftp_password="$FTP_PASSWORD"
+ftp_directory="$FTP_DIRECTORY"
 
 # Number of latest backups to keep on FTP server
-num_backups_to_keep=8
+num_backups_to_keep="$NUM_BACKUPS_TO_KEEP"
 
 # Telegram bot settings
-telegram_bot_token="YOUR_TELEGRAM_BOT_TOKEN"
-telegram_chat_id="YOUR_TELEGRAM_CHAT_ID"
+telegram_bot_token="$TELEGRAM_BOT_TOKEN"
+telegram_chat_id="$TELEGRAM_CHAT_ID"
 
 # Function to send notification via Telegram
 send_telegram_notification() {
@@ -162,7 +165,7 @@ perform_backup "$ftp_server" "$ftp_user" "$ftp_password" "$ftp_directory" && \
 #     send_telegram_notification "[F4P] - Failed to cleanup old backups - [❌]"
 
 # Perform Docker Compose volume backups
-for volume in "${volumes_to_backup[@]}"; do
+for volume in "${docker_volumes_to_backup[@]}"; do
     backup_docker_volume "$volume" && \
         send_telegram_notification "[F4P] - $volume uploaded successfully - [✅]" || \
         send_telegram_notification "[F4P] - Failed to upload $volume - [❌]"
