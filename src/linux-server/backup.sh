@@ -263,18 +263,14 @@ cleanup_old_backups() {
     # Delete old backup files from FTP server
     failed_deleted_files=() # Array to store failed deleted files
     for file in $files_to_delete; do
-        full_path="$ftp_directory/$file"
-        echo
-        echo "Attempting to delete: ftp://$ftp_server$full_path" # Debugging information
-        echo
-        # response=$(curl -s --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $file")
-        # response=$(curl -v --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $file" 2>&1)
-        response=$(curl -v --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $full_path" 2>&1)
+        full_path="$ftp_directory/$file" # Full path to the file on FTP server (e.g. /backup/2021-01-01-01.tar.gz)
+        # response=$(curl -v --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $full_path" 2>&1)
+        response=$(curl -s --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $full_path" 2>&1)
         echo
         echo "Response: $response" # Debugging information
         echo
 
-        if [ $? -eq 0 ]; then
+        if [[ $response == *"250 DELE command successful"* ]]; then
             log_message "${log_levels[1]}" "[✅] Deleted backup file: $file"
             if [ "$telegram_verbose" = true ]; then
                 send_telegram_notification "Deleted backup file [✅]: $file"
