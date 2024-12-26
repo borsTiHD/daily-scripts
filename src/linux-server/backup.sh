@@ -65,7 +65,9 @@ telegram_message_prefix=${TELEGRAM_MESSAGE_PREFIX:-"[BACKUP] - "}
 # Function to send notification via Telegram
 send_telegram_notification() {
     local message="$1"
+    echo -e "[📢] Telegram notification sent: $message\n"
     curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=${telegram_message_prefix}${message}"
+    echo
 }
 
 # Arrays to store succeeded and failed backups
