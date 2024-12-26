@@ -229,7 +229,7 @@ done
 
 if [ "$telegram_send_success" = true ] && [ ${#succeeded_backups[@]} -gt 0 ]; then
     # send_telegram_notification "Succeeded backups: [✅] \n\n $(printf "  - %s\n" "${succeeded_backups[@]}")"
-    send_telegram_notification "$(printf "Succeeded backups: [✅]\n\n")$(printf "  - %s\n" "${succeeded_backups[@]}")"
+    send_telegram_notification "$(printf "Succeeded backups: [✅]\n\n%s" "$(printf "  - %s\n" "${succeeded_backups[@]}")")"
 fi
 
 echo -e "\nFailed backups:"
