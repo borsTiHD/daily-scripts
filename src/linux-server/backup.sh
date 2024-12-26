@@ -246,14 +246,19 @@ cleanup_old_backups() {
     # - Delete the rest of the files from the FTP server
     # - Example: 2021-01-01-01.tar.gz, 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
     # - If num_backups_to_keep is 2, we will keep 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
-    local files_to_delete=$(echo "$file_names" | grep -E "^$(date +%Y-%m-%d)-.*\.tar\.gz" | sort | head -n -$num_backups_to_keep)
+    local sorted_files=$(echo "$file_names" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}-.*\.tar\.gz$' | sort)
+    local files_to_keep=$(echo "$sorted_files" | tail -n $((num_backups_to_keep * $(echo "$sorted_files" | grep -oP '^[0-9]{4}-[0-9]{2}-[0-9]{2}' | uniq | wc -l)))
+    local files_to_delete=$(comm -23 <(echo "$sorted_files") <(echo "$files_to_keep"))
+
+    log_message "${log_levels[1]}" "[📁] Keeping the following backup files: $files_to_keep"
+    log_message "${log_levels[1]}" "[🗑️] Deleting the following backup files: $files_to_delete"
 
     # Print status message
-    log_message "${log_levels[1]}" "[🗑️] Deleting old backups on FTP server: $ftp_server"
-    for file in $files_to_delete; do
-        # curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
-        log_message "${log_levels[1]}" "[🗑️] Deleted old backup: $file"
-    done
+    # log_message "${log_levels[1]}" "[🗑️] Deleting old backups on FTP server: $ftp_server"
+    # for file in $files_to_delete; do
+    #     # curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
+    #     log_message "${log_levels[1]}" "[🗑️] Deleted old backup: $file"
+    # done
 }
 
 # Main process
