@@ -65,9 +65,9 @@ telegram_message_prefix=${TELEGRAM_MESSAGE_PREFIX:-"[BACKUP] - "}
 # Function to send notification via Telegram
 send_telegram_notification() {
     local message="$1"
-    echo -e "[📢] Telegram notification sent: $message\n"
+    echo -e "[📢] Telegram notification sent: $message"
     curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=${telegram_message_prefix}${message}"
-    echo
+    echo -e "\n"
 }
 
 # Arrays to store succeeded and failed backups
@@ -233,7 +233,7 @@ main() {
         done
 
         if [ "$telegram_send_success" = true ]; then
-            send_telegram_notification "$(printf "Succeeded backups: [✅]\n\n%s" "$(printf "  - %s\n" "${succeeded_backups[@]}")")"
+            send_telegram_notification "$(printf "Succeeded backups: [✅]\n%s" "$(printf "  - %s\n" "${succeeded_backups[@]}")")"
         fi
     else
         echo -e "\n[❌] No succeeded backups."
@@ -251,7 +251,7 @@ main() {
         done
 
         if [ "$telegram_send_failure" = true ]; then
-            send_telegram_notification "$(printf "Failed backups: [❌]\n\n%s" "$(printf "  - %s\n" "${failed_backups[@]}")")"
+            send_telegram_notification "$(printf "Failed backups: [❌]\n%s" "$(printf "  - %s\n" "${failed_backups[@]}")")"
         fi
     else
         echo -e "\n[✅] No failed backups."
