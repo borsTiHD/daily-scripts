@@ -225,6 +225,7 @@ perform_docker_backups() {
 cleanup_old_backups() {
     # Print start status message
     log_message "${log_levels[1]}" "[🚀] Starting cleanup of old backups on FTP server: $ftp_server "
+    log_message "${log_levels[1]}" "[📅] Number of days of backups to keep: $num_days_of_backups_to_keep"
 
     # Send info notification if enabled
     if [ "$telegram_send_info" = true ]; then
@@ -252,17 +253,29 @@ cleanup_old_backups() {
     local files_to_delete=$(comm -23 <(echo "$sorted_files") <(echo "$files_to_keep"))
 
     # Print status message
-    log_message "${log_levels[1]}" "[📅] Number of days of backups to keep: $num_days_of_backups_to_keep"
-    log_message "${log_levels[1]}" "[📅] unique_dates: $unique_dates"
     log_message "${log_levels[1]}" "[📁] Keeping the following backup files: $files_to_keep"
     log_message "${log_levels[1]}" "[🗑️] Deleting the following backup files: $files_to_delete"
+    
+    if [ "$telegram_verbose" = true ]; then
+        send_telegram_notification "$(printf "Keeping the following backup files [📁]:\n%s\n\nDeleting the following backup files [🗑️]:\n%s" "$files_to_keep" "$files_to_delete")"
+    fi
 
-    # Print status message
-    # log_message "${log_levels[1]}" "[🗑️] Deleting old backups on FTP server: $ftp_server"
-    # for file in $files_to_delete; do
-    #     # curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
-    #     log_message "${log_levels[1]}" "[🗑️] Deleted old backup: $file"
-    # done
+    for file in $files_to_delete; do
+        curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
+
+        if [ $? -eq 0 ]; then
+            log_message "${log_levels[1]}" "[✅] Deleted backup file: $file"
+            if [ "$telegram_verbose" = true ]; then
+                send_telegram_notification "Deleted backup file [✅]: $file"
+            fi
+        else
+            log_message "${log_levels[3]}" "[❌] Error: Failed to delete backup file: $file"
+            if [ "$telegram_verbose" = true ]; then
+                send_telegram_notification "Failed to delete backup file [❌]: $file"
+            fi
+            failed_backups+=("$file")
+        fi
+    done
 }
 
 # Main process
