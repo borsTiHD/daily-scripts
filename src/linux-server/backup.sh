@@ -235,6 +235,12 @@ cleanup_old_backups() {
     local files=$(curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/)
     local file_count=$(echo "$files" | wc -l)
 
+    # Print status message
+    log_message "${log_levels[1]}" "[📁] Found $file_count backup files on FTP server: $ftp_server"
+    for file in $files; do
+        log_message "${log_levels[1]}" "[📁] Found backup file: $file"
+    done
+
     # - Check only files with the same prefix as the backup files (e.g. 2021-01-01-*.tar.gz)
     # - Sort files by date (oldest first)
     # - Keep only the newest x files (remember that with x number of backups is meant for the same day - one day can have multiple backups and we want to keep all of them for x days)
