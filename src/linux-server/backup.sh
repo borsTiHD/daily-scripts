@@ -69,7 +69,7 @@ ftp_password="$FTP_PASSWORD"
 ftp_directory="$FTP_DIRECTORY"
 
 # Backup settings
-num_backups_to_keep="$NUM_BACKUPS_TO_KEEP" # Number of latest backups to keep on FTP server
+num_days_of_backups_to_keep="$NUM_DAYS_OF_BACKUPS_TO_KEEP" # Number of days of backups to keep on FTP server
 delete_old_backups="$DELETE_OLD_BACKUPS"
 
 # Telegram bot settings
