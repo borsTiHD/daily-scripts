@@ -264,9 +264,15 @@ cleanup_old_backups() {
     failed_deleted_files=() # Array to store failed deleted files
     for file in $files_to_delete; do
         full_path="$ftp_directory/$file"
+        echo
+        echo "Attempting to delete: ftp://$ftp_server$full_path" # Debugging information
+        echo
         response=$(curl -s --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $file")
+        echo
+        echo "Response: $response" # Debugging information
+        echo
 
-        if [ $? -ne 0 ]; then
+        if [ $? -eq 0 ]; then
             log_message "${log_levels[1]}" "[✅] Deleted backup file: $file"
             if [ "$telegram_verbose" = true ]; then
                 send_telegram_notification "Deleted backup file [✅]: $file"
