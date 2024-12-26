@@ -55,6 +55,7 @@ telegram_bot_token="$TELEGRAM_BOT_TOKEN"
 telegram_chat_id="$TELEGRAM_CHAT_ID"
 
 # Telegram message settings
+telegram_send_info=${TELEGRAM_SEND_INFO:-true}
 telegram_send_success=${TELEGRAM_SEND_SUCCESS:-true}
 telegram_send_failure=${TELEGRAM_SEND_FAILURE:-true}
 telegram_send_start=${TELEGRAM_SEND_START:-true}
@@ -96,6 +97,11 @@ perform_folder_backups() {
     for file in "${backup_directories[@]}"; do
         echo -e "  - $file"
     done
+
+    # Send info notification if enabled
+    if [ "$telegram_send_info" = true ]; then
+        send_telegram_notification "$(printf "Starting backups for following paths [🚀]:\n%s" "$(printf "  - %s\n" "${backup_directories[@]}")")"
+    fi
 
     # Backup the files using tar to a temporary directory
     tar $exclude_args -zcf "$tmp_dir/$archive_file" "${backup_directories[@]}" || { 
@@ -203,6 +209,17 @@ backup_docker_volume() {
 
 # Perform Docker Compose volume backups
 perform_docker_backups() {
+    # Print start status message
+    echo -e "[🚀] Backing up the following docker volumes to FTP server: $ftp_server\n"
+    for volume in "${docker_volumes_to_backup[@]}"; do
+        echo -e "  - $volume"
+    done
+
+    # Send info notification if enabled
+    if [ "$telegram_send_info" = true ]; then
+        send_telegram_notification "$(printf "Starting Docker volume backups [🚀]:\n%s" "$(printf "  - %s\n" "${docker_volumes_to_backup[@]}")")"
+    fi
+
     for volume in "${docker_volumes_to_backup[@]}"; do
         backup_docker_volume "$volume" || exit 1
     done
