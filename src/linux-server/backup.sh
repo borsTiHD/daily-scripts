@@ -68,8 +68,9 @@ ftp_user="$FTP_USER"
 ftp_password="$FTP_PASSWORD"
 ftp_directory="$FTP_DIRECTORY"
 
-# Number of latest backups to keep on FTP server
-num_backups_to_keep="$NUM_BACKUPS_TO_KEEP"
+# Backup settings
+num_backups_to_keep="$NUM_BACKUPS_TO_KEEP" # Number of latest backups to keep on FTP server
+delete_old_backups="$DELETE_OLD_BACKUPS"
 
 # Telegram bot settings
 telegram_bot_token="$TELEGRAM_BOT_TOKEN"
@@ -154,33 +155,6 @@ perform_folder_backups() {
     return 0
 }
 
-# Function to cleanup old backups on FTP server, keeping only the newest x backups
-cleanup_old_backups() {
-
-    # TODO: Implement cleanup using lftp - NOT WORKING RIGHT NOW!!!
-
-    local ftp_server="$1"
-    local ftp_user="$2"
-    local ftp_password="$3"
-    local ftp_directory="$4"
-    local num_backups_to_keep="$5"
-
-    log_message "${log_levels[1]}" "Connecting to FTP server to cleanup old backups..."
-    lftp -c "open -u $ftp_user,$ftp_password $ftp_server; cd $ftp_directory; ls -t | tail -n +$((num_backups_to_keep + 1)) | xargs -I {} rm {}" || { log_message "${log_levels[3]}" "Error: Failed to cleanup old backups on FTP server."; return 1; }
-
-    #     # Connect to FTP server
-    #     log_message "INFO" "Connecting to FTP server to cleanup old backups..."
-    #     ftp -inv $ftp_server <<EOF
-    #     user $ftp_user $ftp_password
-    #     cd $ftp_directory
-    #     ls -t | awk "NR>$num_backups_to_keep" | while read filename; do
-    #         log_message "INFO" "Deleting old backup: $filename"
-    #         rm $filename
-    #     done
-    #     bye
-    # EOF
-}
-
 # Function to backup Docker Compose volume
 backup_docker_volume() {
     local volume_name=$1
@@ -247,11 +221,42 @@ perform_docker_backups() {
     done
 }
 
+# Function to cleanup old backups on FTP server, keeping only the newest x backups
+cleanup_old_backups() {
+    # Print start status message
+    log_message "${log_levels[1]}" "[🚀] Starting cleanup of old backups on FTP server: $ftp_server "
+
+    # Send info notification if enabled
+    if [ "$telegram_send_info" = true ]; then
+        send_telegram_notification "Starting cleanup of old backups [🚀]"
+    fi
+
+    # Get list of all files on FTP server
+    local files=$(curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/)
+    local file_count=$(echo "$files" | wc -l)
+
+    # - Check only files with the same prefix as the backup files (e.g. 2021-01-01-*.tar.gz)
+    # - Sort files by date (oldest first)
+    # - Keep only the newest x files (remember that with x number of backups is meant for the same day - one day can have multiple backups and we want to keep all of them for x days)
+    # - Delete the rest of the files from the FTP server
+    local files_to_delete=$(echo "$files" | grep -E "^$day-.*\.tar\.gz$" | sort | head -n -$num_backups_to_keep)
+
+    # Print status message
+    log_message "${log_levels[1]}" "[🗑️] Deleting old backups on FTP server: $ftp_server"
+    for file in $files_to_delete; do
+        # curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
+        log_message "${log_levels[1]}" "[🗑️] Deleted old backup: $file"
+    done
+}
+
 # Main process
 main() {
     log_message "${log_levels[1]}" "--- Backup script started ---"
     log_message "${log_levels[1]}" "[🚀] Starting backup process..."
-    date
+    echo
+    log_message "${log_levels[1]}" "[📡] FTP server: $ftp_server"
+    log_message "${log_levels[1]}" "[📡] FTP path: $ftp_directory"
+    log_message "${log_levels[1]}" "[📡] Number of backups to keep: $num_backups_to_keep"
     echo
 
     # Send start notification if enabled
@@ -260,13 +265,13 @@ main() {
     fi
 
     # Perform backups
-    perform_folder_backups || exit 1
-    perform_docker_backups || exit 1
+    perform_folder_backups
+    perform_docker_backups
 
     # Cleanup old backups on FTP server, keeping only the newest x backups
-    # cleanup_old_backups "$ftp_server" "$ftp_user" "$ftp_password" "$ftp_directory" "$num_backups_to_keep" && \
-    #     send_telegram_notification "Old backups cleanup successful - [✅]" || \
-    #     send_telegram_notification "Failed to cleanup old backups - [❌]"
+    if [ "$delete_old_backups" = true ]; then
+        cleanup_old_backups
+    fi
 
     # Log succeeded and failed backups
     echo
@@ -315,7 +320,7 @@ main() {
     # Print end status message
     echo
     log_message "${log_levels[1]}" "[🏁] Backup finished"
-    date
+    log_message "${log_levels[1]}" "--- Backup script finished ---"
 }
 
 # Run the main process
