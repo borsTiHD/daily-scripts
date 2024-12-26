@@ -233,36 +233,27 @@ cleanup_old_backups() {
 
     # Get list of all files on FTP server
     local files=$(curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/)
-
-    # Extract file names and details
-    local file_names=$(echo "$files" | awk '{print $NF}')
-    local file_details=$(echo "$files" | awk '{print $0}')
-
-    # Count the number of files
-    local file_count=$(echo "$file_names" | wc -l)
+    local file_names=$(echo "$files" | awk '{print $NF}') # Extract file names from the list
+    local file_count=$(echo "$files" | wc -l) # Count the number of files
 
     # Print status message
     log_message "${log_levels[1]}" "[📁] Found $file_count backup files on FTP server: $ftp_server"
-    # for file in $file_names; do
-    #     log_message "${log_levels[1]}" "[📁] Found backup file: $file"
-    # done
-
-    log_message "${log_levels[1]}" "[📁] Files: $files"
-    log_message "${log_levels[1]}" "[📁] File Names: $file_names"
-    log_message "${log_levels[1]}" "[📁] Details: $file_details"
+    log_message "${log_levels[1]}" "[📁] Backup files:\n$file_names"
 
     # - Check only files with the same prefix as the backup files (e.g. 2021-01-01-*.tar.gz)
     # - Sort files by date (oldest first)
     # - Keep only the newest x files (remember that with x number of backups is meant for the same day - one day can have multiple backups and we want to keep all of them for x days)
     # - Delete the rest of the files from the FTP server
-    # local files_to_delete=$(echo "$files" | grep -E "^$day-.*\.tar\.gz$" | sort | head -n -$num_backups_to_keep)
+    # - Example: 2021-01-01-01.tar.gz, 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
+    # - If num_backups_to_keep is 2, we will keep 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
+    local files_to_delete=$(echo "$file_names" | grep -E "^$(date +%Y-%m-%d)-.*\.tar\.gz" | sort | head -n -$num_backups_to_keep)
 
     # Print status message
-    # log_message "${log_levels[1]}" "[🗑️] Deleting old backups on FTP server: $ftp_server"
-    # for file in $files_to_delete; do
-    #     # curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
-    #     log_message "${log_levels[1]}" "[🗑️] Deleted old backup: $file"
-    # done
+    log_message "${log_levels[1]}" "[🗑️] Deleting old backups on FTP server: $ftp_server"
+    for file in $files_to_delete; do
+        # curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
+        log_message "${log_levels[1]}" "[🗑️] Deleted old backup: $file"
+    done
 }
 
 # Main process
