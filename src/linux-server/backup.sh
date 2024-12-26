@@ -221,11 +221,6 @@ if [ "$telegram_send_end" = true ]; then
     send_telegram_notification "Backup finished - [🏁]"
 fi
 
-# Print end status message
-echo
-echo -e "Backup finished\n"
-date
-
 # Log succeeded and failed backups
 echo -e "\nSucceeded backups:"
 for item in "${succeeded_backups[@]}"; do
@@ -233,7 +228,7 @@ for item in "${succeeded_backups[@]}"; do
 done
 
 if [ "$telegram_send_success" = true ] && [ ${#succeeded_backups[@]} -gt 0 ]; then
-    send_telegram_notification "Succeeded backups:\n$(printf "  - %s\n" "${succeeded_backups[@]}")"
+    send_telegram_notification "Succeeded backups: [✅]\n $(printf "  - %s\n" "${succeeded_backups[@]}")"
 fi
 
 echo -e "\nFailed backups:"
@@ -242,5 +237,10 @@ for item in "${failed_backups[@]}"; do
 done
 
 if [ "$telegram_send_failure" = true ] && [ ${#failed_backups[@]} -gt 0 ]; then
-    send_telegram_notification "Failed backups:\n$(printf "  - %s\n" "${failed_backups[@]}")"
+    send_telegram_notification "Failed backups: [❌]\n $(printf "  - %s\n" "${failed_backups[@]}")"
 fi
+
+# Print end status message
+echo
+echo -e "Backup finished\n"
+date
