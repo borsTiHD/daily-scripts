@@ -67,6 +67,10 @@ send_telegram_notification() {
     curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=$message"
 }
 
+# Arrays to store succeeded and failed backups
+succeeded_backups=()
+failed_backups=()
+
 # Function for the backup process
 perform_folder_backups() {
     # Create temporary directory for storing the backup
@@ -95,27 +99,30 @@ perform_folder_backups() {
     # Backup the files using tar to a temporary directory
     tar $exclude_args -zcf "$tmp_dir/$archive_file" "${backup_directories[@]}" || { 
         echo -e "Error: Failed to create backup archive.\n"
-        if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
+        if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to create backup archive - [❌]"
         fi
+        failed_backups+=("$archive_file")
         return 1
     }
 
     # Upload the backup to FTP server
     curl -s -T "$tmp_dir/$archive_file" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { 
         echo -e "Error: Failed to upload backup to FTP server.\n"
-        if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
+        if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to upload backup to FTP server - [❌]"
         fi
+        failed_backups+=("$archive_file")
         return 1
     }
 
     # Send success notification if enabled
-    if [ "$telegram_send_success" = true ] && [ "$telegram_verbose" = true ]; then
+    if [ "$telegram_verbose" = true ]; then
         echo -e "Sending success notification to Telegram...\n"
         send_telegram_notification "[F4P] - Backup uploaded successfully - [✅]"
     fi
 
+    succeeded_backups+=("$archive_file")
     return 0
 }
 
@@ -161,23 +168,26 @@ backup_docker_volume() {
 
     if [ $? -eq 0 ]; then
         echo -e "Backup for volume $volume_name completed successfully.\n"
-        if [ "$telegram_send_success" = true ] && [ "$telegram_verbose" = true ]; then
+        if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Backup for volume $volume_name completed successfully - [✅]"
         fi
+        succeeded_backups+=("$backup_file_name")
     else
         echo -e "Error: Failed to backup volume $volume_name.\n"
-        if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
+        if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to backup volume $volume_name - [❌]"
         fi
+        failed_backups+=("$backup_file_name")
         return 1
-    fi
+    }
 
     # Upload the backup to FTP server
     curl -s -T "$tmp_dir/$backup_file_name" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { 
         echo -e "Error: Failed to upload backup to FTP server.\n"
-        if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
+        if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to upload backup to FTP server - [❌]"
         fi
+        failed_backups+=("$backup_file_name")
         return 1
     }
 
@@ -185,7 +195,7 @@ backup_docker_volume() {
 }
 
 # Perform Docker Compose volume backups
-perform_docker_backup() {
+perform_docker_backups() {
     for volume in "${docker_volumes_to_backup[@]}"; do
         backup_docker_volume "$volume" || exit 1
     done
@@ -198,7 +208,7 @@ fi
 
 # Perform backups
 perform_folder_backups || exit 1
-perform_docker_backup || exit 1
+perform_docker_backups || exit 1
 
 # Cleanup old backups on FTP server, keeping only the newest x backups
 # cleanup_old_backups "$ftp_server" "$ftp_user" "$ftp_password" "$ftp_directory" "$num_backups_to_keep" && \
@@ -214,3 +224,22 @@ fi
 echo
 echo -e "Backup finished\n"
 date
+
+# Log succeeded and failed backups
+echo -e "\nSucceeded backups:"
+for item in "${succeeded_backups[@]}"; do
+    echo -e "  - $item"
+done
+
+if [ "$telegram_send_success" = true ] && [ ${#succeeded_backups[@]} -gt 0 ]; then
+    send_telegram_notification "[F4P] - Succeeded backups:\n$(printf "  - %s\n" "${succeeded_backups[@]}")"
+fi
+
+echo -e "\nFailed backups:"
+for item in "${failed_backups[@]}"; do
+    echo -e "  - $item"
+done
+
+if [ "$telegram_send_failure" = true ] && [ ${#failed_backups[@]} -gt 0 ]; then
+    send_telegram_notification "[F4P] - Failed backups:\n$(printf "  - %s\n" "${failed_backups[@]}")"
+fi
