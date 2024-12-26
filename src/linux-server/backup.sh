@@ -245,11 +245,15 @@ cleanup_old_backups() {
     # - Keep only the newest x files (remember that with x number of backups is meant for the same day - one day can have multiple backups and we want to keep all of them for x days)
     # - Delete the rest of the files from the FTP server
     # - Example: 2021-01-01-01.tar.gz, 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
-    # - If num_backups_to_keep is 2, we will keep 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
+    # - If num_days_of_backups_to_keep is 2, we will keep 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
     local sorted_files=$(echo "$file_names" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}-.*\.tar\.gz$' | sort)
-    local files_to_keep=$(echo "$sorted_files" | tail -n $((num_backups_to_keep * $(echo "$sorted_files" | grep -oP '^[0-9]{4}-[0-9]{2}-[0-9]{2}' | uniq | wc -l))))
+    local unique_dates=$(echo "$sorted_files" | grep -oP '^[0-9]{4}-[0-9]{2}-[0-9]{2}' | uniq | tail -n $num_days_of_backups_to_keep)
+    local files_to_keep=$(echo "$sorted_files" | grep -E "$(echo "$unique_dates" | tr '\n' '|' | sed 's/|$//')")
     local files_to_delete=$(comm -23 <(echo "$sorted_files") <(echo "$files_to_keep"))
 
+    # Print status message
+    log_message "${log_levels[1]}" "[📅] Number of days of backups to keep: $num_days_of_backups_to_keep"
+    log_message "${log_levels[1]}" "[📅] unique_dates: $unique_dates"
     log_message "${log_levels[1]}" "[📁] Keeping the following backup files: $files_to_keep"
     log_message "${log_levels[1]}" "[🗑️] Deleting the following backup files: $files_to_delete"
 
@@ -268,7 +272,7 @@ main() {
     echo
     log_message "${log_levels[1]}" "[📡] FTP server: $ftp_server"
     log_message "${log_levels[1]}" "[📡] FTP path: $ftp_directory"
-    log_message "${log_levels[1]}" "[📡] Number of backups to keep: $num_backups_to_keep"
+    log_message "${log_levels[1]}" "[📅] Number of days of backups to keep: $num_days_of_backups_to_keep"
     echo
 
     # Send start notification if enabled
