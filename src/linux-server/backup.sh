@@ -264,8 +264,7 @@ cleanup_old_backups() {
     failed_deleted_files=() # Array to store failed deleted files
     for file in $files_to_delete; do
         full_path="$ftp_directory/$file" # Full path to the file on FTP server (e.g. /backup/2021-01-01-01.tar.gz)
-        # response=$(curl -v --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $full_path" 2>&1)
-        response=$(curl -s --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $full_path" 2>&1)
+        response=$(curl -v --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $full_path" 2>&1)
         echo
         echo "Response: $response" # Debugging information
         echo
