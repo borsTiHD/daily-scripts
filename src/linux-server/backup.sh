@@ -85,9 +85,6 @@ perform_folder_backups() {
     local hostname=$(hostname -s)
     local archive_file="$hostname-$day.tar.gz"
 
-    # Construct backup file paths
-    local backup_files=$(printf "%s " "${backup_directories[@]}")
-
     # Construct exclude arguments for tar
     local exclude_args=""
     for item in "${excluded_items[@]}"; do
@@ -96,7 +93,7 @@ perform_folder_backups() {
 
     # Print start status message
     echo -e "[🚀] Backing up the following files to FTP server: $ftp_server\n"
-    for file in "${backup_files[@]}"; do
+    for file in "${backup_directories[@]}"; do
         echo -e "  - $file"
     done
 
@@ -167,17 +164,18 @@ backup_docker_volume() {
     local tmp_dir=$(mktemp -d)
     trap "rm -rf $tmp_dir" EXIT
 
-    echo -e "[🚀] Starting backup for volume: $volume_name...\n"
+    echo -e "[🚀] Starting backup for volume: $volume_name..."
     docker run --rm -v ${volume_name}:/data -v $tmp_dir:/backup alpine tar czf /backup/${backup_file_name} -C /data .
 
+    # Check if backup was successful
     if [ $? -eq 0 ]; then
-        echo -e "[✅] Backup for volume $volume_name completed successfully.\n"
+        echo -e "[✅] Backup for volume $volume_name completed successfully."
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Backup for volume $volume_name completed successfully - [✅]"
         fi
         succeeded_backups+=("$backup_file_name")
     else
-        echo -e "[❌] Error: Failed to backup volume $volume_name.\n"
+        echo -e "[❌] Error: Failed to backup volume $volume_name."
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Failed to backup volume $volume_name - [❌]"
         fi
@@ -186,14 +184,19 @@ backup_docker_volume() {
     fi
 
     # Upload the backup to FTP server
-    curl -s -T "$tmp_dir/$backup_file_name" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { 
-        echo -e "[❌] Error: Failed to upload backup to FTP server.\n"
+    if curl -s -T "$tmp_dir/$backup_file_name" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/; then
+        echo -e "[✅] Backup uploaded to FTP server successfully."
         if [ "$telegram_verbose" = true ]; then
-            send_telegram_notification "Failed to upload backup to FTP server - [❌]"
+            send_telegram_notification "Backup uploaded to FTP server successfully [✅]: $volume_name"
+        fi
+    else
+        echo -e "[❌] Error: Failed to upload backup volume $volume_name to FTP server."
+        if [ "$telegram_verbose" = true ]; then
+            send_telegram_notification "Failed to upload backup to FTP server [❌]: $volume_name"
         fi
         failed_backups+=("$backup_file_name")
         return 1
-    }
+    fi
 
     return 0
 }
