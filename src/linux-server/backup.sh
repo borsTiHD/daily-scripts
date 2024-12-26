@@ -267,7 +267,8 @@ cleanup_old_backups() {
         echo
         echo "Attempting to delete: ftp://$ftp_server$full_path" # Debugging information
         echo
-        response=$(curl -s --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $file")
+        # response=$(curl -s --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $file")
+        response=$(curl -v --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $file" 2>&1)
         echo
         echo "Response: $response" # Debugging information
         echo
