@@ -36,9 +36,16 @@ fi
 write_logs="${WRITE_LOGS:-true}"
 log_file="${LOG_FILE_PATH:-backup.log}"
 
+# Array of log levels
+log_levels=("DEBUG" "INFO" "WARN" "ERROR")
+
 # Function to write logs
-write_to_log() {
-    local message="$1"
+log_message() {
+    local log_level_param="$1"
+    local message_param="$2"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local log_level=${log_level_param:-INFO}
+    local message="[$timestamp] [$log_level] $message_param"
     if [ "$write_logs" = true ]; then
         echo -e "$message" | tee -a "$log_file"
     else
@@ -77,17 +84,17 @@ telegram_send_end=${TELEGRAM_SEND_END:-true}
 telegram_verbose=${TELEGRAM_VERBOSE:-true}
 telegram_message_prefix=${TELEGRAM_MESSAGE_PREFIX:-"[BACKUP] - "}
 
-# Function to send notification via Telegram
-send_telegram_notification() {
-    local message="$1"
-    write_to_log "[📢] Telegram notification sent: $message"
-    curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=${telegram_message_prefix}${message}"
-    echo
-}
-
 # Arrays to store succeeded and failed backups
 succeeded_backups=()
 failed_backups=()
+
+# Function to send notification via Telegram
+send_telegram_notification() {
+    local message="$1"
+    echo "[📢] Telegram notification sent: $message"
+    curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=${telegram_message_prefix}${message}"
+    echo
+}
 
 # Function for the backup process
 perform_folder_backups() {
@@ -107,9 +114,9 @@ perform_folder_backups() {
     done
 
     # Print start status message
-    write_to_log "[🚀] Backing up the following files to FTP server: $ftp_server"
+    log_message "${log_levels[1]}" "[🚀] Backing up the following files to FTP server: $ftp_server"
     for file in "${backup_directories[@]}"; do
-        write_to_log "  - $file"
+        log_message "${log_levels[1]}" "  - $file"
     done
 
     # Send info notification if enabled
@@ -119,7 +126,7 @@ perform_folder_backups() {
 
     # Backup the files using tar to a temporary directory
     tar $exclude_args -zcf "$tmp_dir/$archive_file" "${backup_directories[@]}" || { 
-        write_to_log "[❌] Error: Failed to create backup archive"
+        log_message "${log_levels[3]}" "[❌] Error: Failed to create backup archive"
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Failed to create backup archive - [❌]"
         fi
@@ -129,7 +136,7 @@ perform_folder_backups() {
 
     # Upload the backup to FTP server
     curl -s -T "$tmp_dir/$archive_file" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { 
-        write_to_log "[❌] Error: Failed to upload backup to FTP server"
+        log_message "${log_levels[3]}" "[❌] Error: Failed to upload backup to FTP server"
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Failed to upload backup to FTP server - [❌]"
         fi
@@ -139,7 +146,7 @@ perform_folder_backups() {
 
     # Send success notification if enabled
     if [ "$telegram_verbose" = true ]; then
-        write_to_log "[✅] Sending success notification to Telegram..."
+        log_message "${log_levels[1]}" "[✅] Sending success notification to Telegram..."
         send_telegram_notification "Backup uploaded successfully - [✅]"
     fi
 
@@ -158,16 +165,16 @@ cleanup_old_backups() {
     local ftp_directory="$4"
     local num_backups_to_keep="$5"
 
-    write_to_log "Connecting to FTP server to cleanup old backups..."
-    lftp -c "open -u $ftp_user,$ftp_password $ftp_server; cd $ftp_directory; ls -t | tail -n +$((num_backups_to_keep + 1)) | xargs -I {} rm {}" || { write_to_log "Error: Failed to cleanup old backups on FTP server."; return 1; }
+    log_message "${log_levels[1]}" "Connecting to FTP server to cleanup old backups..."
+    lftp -c "open -u $ftp_user,$ftp_password $ftp_server; cd $ftp_directory; ls -t | tail -n +$((num_backups_to_keep + 1)) | xargs -I {} rm {}" || { log_message "${log_levels[3]}" "Error: Failed to cleanup old backups on FTP server."; return 1; }
 
     #     # Connect to FTP server
-    #     write_to_log "Connecting to FTP server to cleanup old backups..."
+    #     log_message "INFO" "Connecting to FTP server to cleanup old backups..."
     #     ftp -inv $ftp_server <<EOF
     #     user $ftp_user $ftp_password
     #     cd $ftp_directory
     #     ls -t | awk "NR>$num_backups_to_keep" | while read filename; do
-    #         write_to_log "Deleting old backup: $filename"
+    #         log_message "INFO" "Deleting old backup: $filename"
     #         rm $filename
     #     done
     #     bye
@@ -184,18 +191,18 @@ backup_docker_volume() {
     local tmp_dir=$(mktemp -d)
     trap "rm -rf $tmp_dir" EXIT
 
-    write_to_log "[🚀] Starting backup for volume: $volume_name..."
+    log_message "${log_levels[1]}" "[🚀] Starting backup for volume: $volume_name..."
     docker run --rm -v ${volume_name}:/data -v $tmp_dir:/backup alpine tar czf /backup/${backup_file_name} -C /data .
 
     # Check if backup was successful
     if [ $? -eq 0 ]; then
-        write_to_log "[✅] Backup completed successfully for volume: $volume_name "
+        log_message "${log_levels[1]}" "[✅] Backup completed successfully for volume: $volume_name "
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Backup completed successfully for volume [✅]: $volume_name"
         fi
         succeeded_backups+=("$backup_file_name")
     else
-        write_to_log "[❌] Error: Failed to backup volume: $volume_name"
+        log_message "${log_levels[3]}" "[❌] Error: Failed to backup volume: $volume_name"
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Failed to backup volume [❌]: $volume_name"
         fi
@@ -205,12 +212,12 @@ backup_docker_volume() {
 
     # Upload the backup to FTP server
     if curl -s -T "$tmp_dir/$backup_file_name" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/; then
-        write_to_log "[✅] Backup uploaded to FTP server successfully: $volume_name"
+        log_message "${log_levels[1]}" "[✅] Backup uploaded to FTP server successfully: $volume_name"
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Backup uploaded to FTP server successfully [✅]: $volume_name"
         fi
     else
-        write_to_log "[❌] Error: Failed to upload backup volume $volume_name to FTP server"
+        log_message "${log_levels[3]}" "[❌] Error: Failed to upload backup volume $volume_name to FTP server"
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "Failed to upload backup to FTP server [❌]: $volume_name"
         fi
@@ -224,9 +231,9 @@ backup_docker_volume() {
 # Perform Docker Compose volume backups
 perform_docker_backups() {
     # Print start status message
-    write_to_log "[🚀] Backing up the following docker volumes to FTP server: $ftp_server"
+    log_message "${log_levels[1]}" "[🚀] Backing up the following docker volumes to FTP server: $ftp_server"
     for volume in "${docker_volumes_to_backup[@]}"; do
-        write_to_log "  - $volume"
+        log_message "${log_levels[1]}" "  - $volume"
     done
 
     # Send info notification if enabled
@@ -242,7 +249,8 @@ perform_docker_backups() {
 
 # Main process
 main() {
-    write_to_log "[🚀] Starting backup process..."
+    log_message "${log_levels[1]}" "--- Backup script started ---"
+    log_message "${log_levels[1]}" "[🚀] Starting backup process..."
     date
     echo
 
@@ -263,16 +271,16 @@ main() {
     # Log succeeded and failed backups
     echo
     if ((${#succeeded_backups[@]} > 0)); then
-        write_to_log "[✅] Succeeded backups:"
+        log_message "${log_levels[1]}" "[✅] Succeeded backups:"
         for item in "${succeeded_backups[@]}"; do
-            write_to_log "  - $item"
+            log_message "${log_levels[1]}" "  - $item"
         done
 
         if [ "$telegram_send_success" = true ]; then
             send_telegram_notification "$(printf "Succeeded backups: [✅]\n%s" "$(printf "  - %s\n" "${succeeded_backups[@]}")")"
         fi
     else
-        write_to_log "[❌] No succeeded backups"
+        log_message "${log_levels[2]}" "[❌] No succeeded backups"
 
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "No succeeded backups - [❌]"
@@ -282,16 +290,16 @@ main() {
     # Log failed backups
     echo
     if ((${#failed_backups[@]} > 0)); then
-        write_to_log "[❌] Failed backups:"
+        log_message "${log_levels[3]}" "[❌] Failed backups:"
         for item in "${failed_backups[@]}"; do
-            write_to_log "  - $item"
+            log_message "${log_levels[3]}" "  - $item"
         done
 
         if [ "$telegram_send_failure" = true ]; then
             send_telegram_notification "$(printf "Failed backups: [❌]\n%s" "$(printf "  - %s\n" "${failed_backups[@]}")")"
         fi
     else
-        write_to_log "[✅] No failed backups"
+        log_message "${log_levels[1]}" "[✅] No failed backups"
 
         if [ "$telegram_verbose" = true ]; then
             send_telegram_notification "No failed backups - [✅]"
@@ -306,7 +314,7 @@ main() {
 
     # Print end status message
     echo
-    write_to_log "[🏁] Backup finished"
+    log_message "${log_levels[1]}" "[🏁] Backup finished"
     date
 }
 
