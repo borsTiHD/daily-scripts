@@ -180,7 +180,7 @@ backup_docker_volume() {
         fi
         failed_backups+=("$backup_file_name")
         return 1
-    }
+    fi
 
     # Upload the backup to FTP server
     curl -s -T "$tmp_dir/$backup_file_name" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { 
