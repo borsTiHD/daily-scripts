@@ -260,8 +260,9 @@ cleanup_old_backups() {
         send_telegram_notification "$(printf "Keeping the following backup files [📁]:\n%s\n\nDeleting the following backup files [🗑️]:\n%s" "$files_to_keep" "$files_to_delete")"
     fi
 
+    # Delete old backup files from FTP server
     for file in $files_to_delete; do
-        curl -s ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/$file -X "DELE"
+        curl -s --user $ftp_user:$ftp_password ftp://$ftp_server/$ftp_directory/$file -Q "DELE $file"
 
         if [ $? -eq 0 ]; then
             log_message "${log_levels[1]}" "[✅] Deleted backup file: $file"
@@ -273,7 +274,6 @@ cleanup_old_backups() {
             if [ "$telegram_verbose" = true ]; then
                 send_telegram_notification "Failed to delete backup file [❌]: $file"
             fi
-            failed_backups+=("$file")
         fi
     done
 }
