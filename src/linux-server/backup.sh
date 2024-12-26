@@ -104,8 +104,8 @@ perform_folder_backups() {
 
     # Create archive filename
     local day=$(date +%Y-%m-%d)
-    local hostname=$(hostname -s)
-    local archive_file="$hostname-$day.tar.gz"
+    local hostname=$(hostname) # short: $(hostname -s)
+    local archive_file="${day}-files-${hostname}.tar.gz"
 
     # Construct exclude arguments for tar
     local exclude_args=""
@@ -185,7 +185,7 @@ cleanup_old_backups() {
 backup_docker_volume() {
     local volume_name=$1
     local day=$(date +%Y-%m-%d)
-    local backup_file_name="${volume_name}-backup-${day}.tar.gz"
+    local backup_file_name="${day}-docker-${volume_name}.tar.gz"
 
     # Create temporary directory for storing the backup
     local tmp_dir=$(mktemp -d)
