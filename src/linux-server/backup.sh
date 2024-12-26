@@ -88,13 +88,13 @@ perform_folder_backups() {
     done
 
     # Print start status message
-    echo "Backing up $backup_files to FTP server: $ftp_server"
+    echo -e "Backing up $backup_files to FTP server: $ftp_server\n"
     date
     echo
 
     # Backup the files using tar to a temporary directory
     tar $exclude_args -zcf "$tmp_dir/$archive_file" "${backup_directories[@]}" || { 
-        echo "Error: Failed to create backup archive."
+        echo -e "Error: Failed to create backup archive.\n"
         if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to create backup archive - [❌]"
         fi
@@ -103,7 +103,7 @@ perform_folder_backups() {
 
     # Upload the backup to FTP server
     curl -s -T "$tmp_dir/$archive_file" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { 
-        echo "Error: Failed to upload backup to FTP server."
+        echo -e "Error: Failed to upload backup to FTP server.\n"
         if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to upload backup to FTP server - [❌]"
         fi
@@ -112,7 +112,7 @@ perform_folder_backups() {
 
     # Send success notification if enabled
     if [ "$telegram_send_success" = true ] && [ "$telegram_verbose" = true ]; then
-        echo "Sending success notification to Telegram..."
+        echo -e "Sending success notification to Telegram...\n"
         send_telegram_notification "[F4P] - Backup uploaded successfully - [✅]"
     fi
 
@@ -156,16 +156,16 @@ backup_docker_volume() {
     local tmp_dir=$(mktemp -d)
     trap "rm -rf $tmp_dir" EXIT
 
-    echo "Starting backup for volume: $volume_name..."
+    echo -e "Starting backup for volume: $volume_name...\n"
     docker run --rm -v ${volume_name}:/data -v $tmp_dir:/backup alpine tar czf /backup/${backup_file_name} -C /data .
 
     if [ $? -eq 0 ]; then
-        echo "Backup for volume $volume_name completed successfully."
+        echo -e "Backup for volume $volume_name completed successfully.\n"
         if [ "$telegram_send_success" = true ] && [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Backup for volume $volume_name completed successfully - [✅]"
         fi
     else
-        echo "Error: Failed to backup volume $volume_name."
+        echo -e "Error: Failed to backup volume $volume_name.\n"
         if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to backup volume $volume_name - [❌]"
         fi
@@ -174,7 +174,7 @@ backup_docker_volume() {
 
     # Upload the backup to FTP server
     curl -s -T "$tmp_dir/$backup_file_name" ftp://$ftp_user:$ftp_password@$ftp_server/$ftp_directory/ || { 
-        echo "Error: Failed to upload backup to FTP server."
+        echo -e "Error: Failed to upload backup to FTP server.\n"
         if [ "$telegram_send_failure" = true ] && [ "$telegram_verbose" = true ]; then
             send_telegram_notification "[F4P] - Failed to upload backup to FTP server - [❌]"
         fi
@@ -212,5 +212,5 @@ fi
 
 # Print end status message
 echo
-echo "Backup finished"
+echo -e "Backup finished\n"
 date
