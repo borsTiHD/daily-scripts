@@ -256,11 +256,12 @@ cleanup_old_backups() {
     log_message "${log_levels[1]}" "[📁] Keeping the following backup files: $files_to_keep"
     log_message "${log_levels[1]}" "[🗑️] Deleting the following backup files: $files_to_delete"
     
-    if [ "$telegram_verbose" = true ]; then
+    if [ "$telegram_send_info" = true ]; then
         send_telegram_notification "$(printf "Keeping the following backup files [📁]:\n%s\n\nDeleting the following backup files [🗑️]:\n%s" "$files_to_keep" "$files_to_delete")"
     fi
 
     # Delete old backup files from FTP server
+    failed_deleted_files=() # Array to store failed deleted files
     for file in $files_to_delete; do
         curl -s --user $ftp_user:$ftp_password ftp://$ftp_server/$ftp_directory/$file -Q "DELE $file"
 
@@ -274,8 +275,21 @@ cleanup_old_backups() {
             if [ "$telegram_verbose" = true ]; then
                 send_telegram_notification "Failed to delete backup file [❌]: $file"
             fi
+            failed_deleted_files+=("$file")
         fi
     done
+
+    # Log failed deleted files
+    if ((${#failed_deleted_files[@]} > 0)); then
+        log_message "${log_levels[3]}" "[❌] Failed to delete the following backup files:"
+        for item in "${failed_deleted_files[@]}"; do
+            log_message "${log_levels[3]}" "  - $item"
+        fi
+
+        if [ "$telegram_send_failure" = true ]; then
+            send_telegram_notification "$(printf "Failed to delete backup files [❌]:\n%s" "$(printf "  - %s\n" "${failed_deleted_files[@]}")")"
+        fi
+    fi
 }
 
 # Main process
