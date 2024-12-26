@@ -284,7 +284,7 @@ cleanup_old_backups() {
         log_message "${log_levels[3]}" "[❌] Failed to delete the following backup files:"
         for item in "${failed_deleted_files[@]}"; do
             log_message "${log_levels[3]}" "  - $item"
-        fi
+        done
 
         if [ "$telegram_send_failure" = true ]; then
             send_telegram_notification "$(printf "Failed to delete backup files [❌]:\n%s" "$(printf "  - %s\n" "${failed_deleted_files[@]}")")"
