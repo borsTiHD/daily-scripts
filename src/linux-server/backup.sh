@@ -40,9 +40,9 @@ log_file="${LOG_FILE_PATH:-backup.log}"
 write_to_log() {
     local message="$1"
     if [ "$write_logs" = true ]; then
-        echo -e "$message\n" | tee -a "$log_file"
+        echo -e "$message" | tee -a "$log_file"
     else
-        echo -e "$message\n"
+        echo -e "$message"
     fi
 }
 
@@ -82,7 +82,7 @@ send_telegram_notification() {
     local message="$1"
     write_to_log "[📢] Telegram notification sent: $message"
     curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=${telegram_message_prefix}${message}"
-    echo "\n"
+    echo
 }
 
 # Arrays to store succeeded and failed backups
@@ -233,7 +233,7 @@ perform_docker_backups() {
     if [ "$telegram_send_info" = true ]; then
         send_telegram_notification "$(printf "Starting Docker volume backups [🚀]:\n%s" "$(printf "  - %s\n" "${docker_volumes_to_backup[@]}")")"
     fi
-    echo "\n"
+    echo
 
     for volume in "${docker_volumes_to_backup[@]}"; do
         backup_docker_volume "$volume" || exit 1
@@ -244,7 +244,7 @@ perform_docker_backups() {
 main() {
     write_to_log "[🚀] Starting backup process..."
     date
-    echo "\n"
+    echo
 
     # Send start notification if enabled
     if [ "$telegram_send_start" = true ]; then
@@ -261,7 +261,7 @@ main() {
     #     send_telegram_notification "Failed to cleanup old backups - [❌]"
 
     # Log succeeded and failed backups
-    echo "\n"
+    echo
     if ((${#succeeded_backups[@]} > 0)); then
         write_to_log "[✅] Succeeded backups:"
         for item in "${succeeded_backups[@]}"; do
@@ -280,7 +280,7 @@ main() {
     fi
 
     # Log failed backups
-    echo "\n"
+    echo
     if ((${#failed_backups[@]} > 0)); then
         write_to_log "[❌] Failed backups:"
         for item in "${failed_backups[@]}"; do
@@ -299,13 +299,13 @@ main() {
     fi
 
     # Send end notification if enabled
-    echo "\n"
+    echo
     if [ "$telegram_send_end" = true ]; then
         send_telegram_notification "Backup finished - [🏁]"
     fi
 
     # Print end status message
-    echo "\n"
+    echo
     write_to_log "[🏁] Backup finished"
     date
 }
