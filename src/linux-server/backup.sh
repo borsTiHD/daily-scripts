@@ -241,14 +241,15 @@ cleanup_old_backups() {
     # Count the number of files
     local file_count=$(echo "$file_names" | wc -l)
 
-    log_message "${log_levels[1]}" "[📁] Files: $files"
-    log_message "${log_levels[1]}" "[📁] Details: $file_details"
-
     # Print status message
-    # log_message "${log_levels[1]}" "[📁] Found $file_count backup files on FTP server: $ftp_server"
-    # for file in $files; do
+    log_message "${log_levels[1]}" "[📁] Found $file_count backup files on FTP server: $ftp_server"
+    # for file in $file_names; do
     #     log_message "${log_levels[1]}" "[📁] Found backup file: $file"
     # done
+
+    log_message "${log_levels[1]}" "[📁] Files: $files"
+    log_message "${log_levels[1]}" "[📁] File Names: $file_names"
+    log_message "${log_levels[1]}" "[📁] Details: $file_details"
 
     # - Check only files with the same prefix as the backup files (e.g. 2021-01-01-*.tar.gz)
     # - Sort files by date (oldest first)
