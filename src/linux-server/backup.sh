@@ -23,10 +23,11 @@
 ####################################
 
 # Load environment variables from backup.env or .env file
-if [ -f backup.env ]; then
-    source backup.env
-elif [ -f .env ]; then
-    source .env
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+if [ -f "$SCRIPT_DIR/backup.env" ]; then
+    source "$SCRIPT_DIR/backup.env"
+elif [ -f "$SCRIPT_DIR/.env" ]; then
+    source "$SCRIPT_DIR/.env"
 else
     echo "[❌] backup.env or .env file not found! Please create one. See backup.env.example for reference. Exiting..."
     exit 1
