@@ -18,18 +18,30 @@
 #
 # Note:
 # This script requires a backup.env or .env file with the necessary environment variables.
+# The file should be in the same directory as the script or in the script directory.
 # You can use the provided backup.env.example as a template.
+#
+# To specify a custom environment file, pass the file path as an argument:
+# /usr/local/bin/backup.sh /path/to/custom.env
 #
 ####################################
 
-# Load environment variables from backup.env or .env file
+# Load environment variables from provided argument or backup.env/.env file
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-if [ -f "$SCRIPT_DIR/backup.env" ]; then
+env_file="${1:-}"
+
+if [ -n "$env_file" ] && [ -f "$env_file" ]; then
+    source "$env_file"
+elif [ -f "$SCRIPT_DIR/backup.env" ]; then
     source "$SCRIPT_DIR/backup.env"
 elif [ -f "$SCRIPT_DIR/.env" ]; then
     source "$SCRIPT_DIR/.env"
 else
-    echo "[❌] backup.env or .env file not found! Please create one. See backup.env.example for reference. Exiting..."
+    tmp_log_file="backup.log"
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    error="[❌] Environment file not found! Please provide one as an argument or create backup.env/.env in the script directory. Exiting..."
+    message="[$timestamp] [ERROR] $error"
+    echo -e "$message" | tee -a "$tmp_log_file"
     exit 1
 fi
 
@@ -242,12 +254,14 @@ cleanup_old_backups() {
     log_message "${log_levels[1]}" "[📁] Found $file_count backup files on FTP server: $ftp_server"
     log_message "${log_levels[1]}" "[📁] Backup files:\n$file_names"
 
-    # - Check only files with the same prefix as the backup files (e.g. 2021-01-01-*.tar.gz)
+    # Get oldest files to delete based on the number of days to keep
+    # - Filter files with the prefix matching the backup files (e.g., "2021-01-01-*.tar.gz")
     # - Sort files by date (oldest first)
-    # - Keep only the newest x files (remember that with x number of backups is meant for the same day - one day can have multiple backups and we want to keep all of them for x days)
+    # - Keep only the newest files for the specified number of days ("num_days_of_backups_to_keep")
     # - Delete the rest of the files from the FTP server
-    # - Example: 2021-01-01-01.tar.gz, 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
-    # - If num_days_of_backups_to_keep is 2, we will keep 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz
+    # - Example: If "num_days_of_backups_to_keep" is 2, and files are:
+    #   "2021-01-01-01.tar.gz, 2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz"
+    #   We will keep: "2021-01-01-02.tar.gz, 2021-01-01-03.tar.gz, 2021-01-02-01.tar.gz, 2021-01-02-02.tar.gz"
     local sorted_files=$(echo "$file_names" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}-.*\.tar\.gz$' | sort)
     local unique_dates=$(echo "$sorted_files" | grep -oP '^[0-9]{4}-[0-9]{2}-[0-9]{2}' | uniq | tail -n $num_days_of_backups_to_keep)
     local files_to_keep=$(echo "$sorted_files" | grep -E "$(echo "$unique_dates" | tr '\n' '|' | sed 's/|$//')")
