@@ -331,9 +331,10 @@ cleanup_old_backups() {
 
 # Function for creating report
 report_info() {
-    local report="Backup Report - [🏁]\n\n"
+    local report="Backup Report - [🏁]\n"
 
     # Log succeeded backups
+    report+="\n"
     if ((${#succeeded_backups[@]} > 0)); then
         report+="Succeeded backups: [✅]\n"
         for item in "${succeeded_backups[@]}"; do
@@ -344,8 +345,8 @@ report_info() {
     fi
 
     # Log failed backups
+    report+="\n"
     if ((${#failed_backups[@]} > 0)); then
-        report+="\n"
         report+="Failed backups: [❌]\n"
         for item in "${failed_backups[@]}"; do
             report+="  - $item\n"
@@ -355,10 +356,10 @@ report_info() {
     fi
 
     # Log cleanup status
+    report+="\n"
     if [ "$delete_old_backups" = true ]; then
         if [ "$deletion_failed" = false ]; then
             # Log succeeded deleted files
-            report+="\n"
             if ((${#succeeded_deleted_files[@]} > 0)); then
                 report+="Deleted old backups: [✅]\n"
                 for item in "${succeeded_deleted_files[@]}"; do
