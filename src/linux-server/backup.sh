@@ -90,6 +90,7 @@ telegram_bot_token="$TELEGRAM_BOT_TOKEN"
 telegram_chat_id="$TELEGRAM_CHAT_ID"
 
 # Telegram message settings
+telegram_send_report=${TELEGRAM_SEND_REPORT:-true}
 telegram_send_info=${TELEGRAM_SEND_INFO:-true}
 telegram_send_success=${TELEGRAM_SEND_SUCCESS:-true}
 telegram_send_failure=${TELEGRAM_SEND_FAILURE:-true}
@@ -101,6 +102,10 @@ telegram_message_prefix=${TELEGRAM_MESSAGE_PREFIX:-"[BACKUP] - "}
 # Arrays to store succeeded and failed backups
 succeeded_backups=()
 failed_backups=()
+
+# Arrays to store succeeded and failed deleted files on FTP server
+succeeded_deleted_files=()
+failed_deleted_files=()
 
 # Function to send notification via Telegram
 send_telegram_notification() {
@@ -270,13 +275,12 @@ cleanup_old_backups() {
     # Print status message
     log_message "${log_levels[1]}" "[📁] Keeping the following backup files: $files_to_keep"
     log_message "${log_levels[1]}" "[🗑️] Deleting the following backup files: $files_to_delete"
-    
+
     if [ "$telegram_send_info" = true ]; then
         send_telegram_notification "$(printf "Keeping the following backup files [📁]:\n%s\n\nDeleting the following backup files [🗑️]:\n%s" "$files_to_keep" "$files_to_delete")"
     fi
 
     # Delete old backup files from FTP server
-    failed_deleted_files=() # Array to store failed deleted files
     for file in $files_to_delete; do
         full_path="$ftp_directory/$file" # Full path to the file on FTP server (e.g. /backup/2021-01-01-01.tar.gz)
         response=$(curl -v --user $ftp_user:$ftp_password ftp://$ftp_server$full_path -Q "DELE $full_path" 2>&1)
@@ -287,6 +291,7 @@ cleanup_old_backups() {
             if [ "$telegram_verbose" = true ]; then
                 send_telegram_notification "Deleted backup file [✅]: $file"
             fi
+            succeeded_deleted_files+=("$file")
         else
             log_message "${log_levels[3]}" "[❌] Error response: $response"
             log_message "${log_levels[3]}" "[❌] Error: Failed to delete backup file: $file"
@@ -308,6 +313,60 @@ cleanup_old_backups() {
             send_telegram_notification "$(printf "Failed to delete backup files [❌]:\n%s" "$(printf "  - %s\n" "${failed_deleted_files[@]}")")"
         fi
     fi
+}
+
+# Function for creating report
+report_info() {
+    local report="Backup Report - [🏁]\n\n"
+
+    # Log succeeded backups
+    if ((${#succeeded_backups[@]} > 0)); then
+        report+="Succeeded backups: [✅]\n"
+        for item in "${succeeded_backups[@]}"; do
+            report+="  - $item\n"
+        done
+    else
+        report+="No succeeded backups - [❌]\n"
+    fi
+
+    # Log failed backups
+    if ((${#failed_backups[@]} > 0)); then
+        report+="Failed backups: [❌]\n"
+        for item in "${failed_backups[@]}"; do
+            report+="  - $item\n"
+        done
+    else
+        report+="No failed backups - [✅]\n"
+    fi
+
+    # Log succeeded deleted files
+    if ((${#succeeded_deleted_files[@]} > 0)); then
+        report+="Deleted old backups: [✅]\n"
+        for item in "${succeeded_deleted_files[@]}"; do
+            report+="  - $item\n"
+        done
+    else
+        report+="No old backups deleted - [✅]\n"
+    fi
+
+    # Log failed deleted files
+    if ((${#failed_deleted_files[@]} > 0)); then
+        report+="Failed to delete old backups: [❌]\n"
+        for item in "${failed_deleted_files[@]}"; do
+            report+="  - $item\n"
+        done
+    else
+        report+="No failed old backups deleted - [✅]\n"
+    fi
+
+    # Log report
+    echo
+    log_message "${log_levels[1]}" "$report"
+
+    # Send report to telegram if enabled
+    if [ "$telegram_send_report" = true ]; then
+        send_telegram_notification "$report"
+    }
 }
 
 # Main process
@@ -334,43 +393,8 @@ main() {
         cleanup_old_backups
     fi
 
-    # Log succeeded and failed backups
-    echo
-    if ((${#succeeded_backups[@]} > 0)); then
-        log_message "${log_levels[1]}" "[✅] Succeeded backups:"
-        for item in "${succeeded_backups[@]}"; do
-            log_message "${log_levels[1]}" "  - $item"
-        done
-
-        if [ "$telegram_send_success" = true ]; then
-            send_telegram_notification "$(printf "Succeeded backups: [✅]\n%s" "$(printf "  - %s\n" "${succeeded_backups[@]}")")"
-        fi
-    else
-        log_message "${log_levels[2]}" "[❌] No succeeded backups"
-
-        if [ "$telegram_verbose" = true ]; then
-            send_telegram_notification "No succeeded backups - [❌]"
-        fi
-    fi
-
-    # Log failed backups
-    echo
-    if ((${#failed_backups[@]} > 0)); then
-        log_message "${log_levels[3]}" "[❌] Failed backups:"
-        for item in "${failed_backups[@]}"; do
-            log_message "${log_levels[3]}" "  - $item"
-        done
-
-        if [ "$telegram_send_failure" = true ]; then
-            send_telegram_notification "$(printf "Failed backups: [❌]\n%s" "$(printf "  - %s\n" "${failed_backups[@]}")")"
-        fi
-    else
-        log_message "${log_levels[1]}" "[✅] No failed backups"
-
-        if [ "$telegram_verbose" = true ]; then
-            send_telegram_notification "No failed backups - [✅]"
-        fi
-    fi
+    # Send and log report
+    report_info
 
     # Send end notification if enabled
     echo
