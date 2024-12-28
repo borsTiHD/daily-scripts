@@ -106,6 +106,7 @@ failed_backups=()
 # Arrays to store succeeded and failed deleted files on FTP server
 succeeded_deleted_files=()
 failed_deleted_files=()
+deletion_failed=false
 
 # Function to send notification via Telegram
 send_telegram_notification() {
@@ -330,6 +331,7 @@ report_info() {
     fi
 
     # Log failed backups
+    report+="\n"
     if ((${#failed_backups[@]} > 0)); then
         report+="Failed backups: [❌]\n"
         for item in "${failed_backups[@]}"; do
@@ -339,24 +341,34 @@ report_info() {
         report+="No failed backups - [✅]\n"
     fi
 
-    # Log succeeded deleted files
-    if ((${#succeeded_deleted_files[@]} > 0)); then
-        report+="Deleted old backups: [✅]\n"
-        for item in "${succeeded_deleted_files[@]}"; do
-            report+="  - $item\n"
-        done
-    else
-        report+="No old backups deleted - [✅]\n"
-    fi
+    # Log cleanup status
+    report+="\n"
+    if [ "$delete_old_backups" = true ]; then
+        if [ "$deletion_failed" = false ]; then
+            # Log succeeded deleted files
+            if ((${#succeeded_deleted_files[@]} > 0)); then
+                report+="Deleted old backups: [✅]\n"
+                for item in "${succeeded_deleted_files[@]}"; do
+                    report+="  - $item\n"
+                done
+            else
+                report+="No old backups deleted: [✅]\n"
+            fi
 
-    # Log failed deleted files
-    if ((${#failed_deleted_files[@]} > 0)); then
-        report+="Failed to delete old backups: [❌]\n"
-        for item in "${failed_deleted_files[@]}"; do
-            report+="  - $item\n"
-        done
+            # Log failed deleted files
+            if ((${#failed_deleted_files[@]} > 0)); then
+                report+="Failed to delete old backups: [❌]\n"
+                for item in "${failed_deleted_files[@]}"; do
+                    report+="  - $item\n"
+                done
+            else
+                report+="No failed old backups deleted: [✅]\n"
+            fi
+        else
+            report+="Failed to delete old backups: [❌]\n"
+        fi
     else
-        report+="No failed old backups deleted - [✅]\n"
+        report+="Cleanup of old backups is disabled: [⚠️]\n"
     fi
 
     # Log report
@@ -390,7 +402,16 @@ main() {
 
     # Cleanup old backups on FTP server, keeping only the newest x backups
     if [ "$delete_old_backups" = true ]; then
-        cleanup_old_backups
+        # Check if any backup failed
+        if ((${#failed_backups[@]} > 0)); then
+            log_message "${log_levels[3]}" "[❌] One or more backups failed. Skipping cleanup of old backups."
+            if [ "$telegram_send_failure" = true ]; then
+                send_telegram_notification "One or more backups failed - [❌]. Skipping cleanup of old backups."
+            fi
+            deletion_failed=true
+        else
+            cleanup_old_backups
+        fi
     fi
 
     # Send and log report
