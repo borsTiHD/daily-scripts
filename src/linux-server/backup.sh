@@ -112,7 +112,8 @@ deletion_failed=false
 send_telegram_notification() {
     local message="$1"
     echo "[📢] Telegram notification sent: $message"
-    curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=${telegram_message_prefix}${message}"
+    formatted_message=$(printf "%b" "$message")
+    curl -s -X POST https://api.telegram.org/bot$telegram_bot_token/sendMessage -d "chat_id=$telegram_chat_id" -d "text=${telegram_message_prefix}${formatted_message}"
     echo
 }
 
@@ -141,7 +142,11 @@ perform_folder_backups() {
 
     # Send info notification if enabled
     if [ "$telegram_send_info" = true ]; then
-        send_telegram_notification "$(printf "Starting backups for following paths [🚀]:\n%s" "$(printf "  - %s\n" "${backup_directories[@]}")")"
+        message="Starting backups for the following paths [🚀]:\n"
+        for path in "${backup_directories[@]}"; do
+            message+="  - $path\n"
+        done
+        send_telegram_notification "$message"
     fi
 
     # Backup the files using tar to a temporary directory
@@ -231,7 +236,11 @@ perform_docker_backups() {
 
     # Send info notification if enabled
     if [ "$telegram_send_info" = true ]; then
-        send_telegram_notification "$(printf "Starting Docker volume backups [🚀]:\n%s" "$(printf "  - %s\n" "${docker_volumes_to_backup[@]}")")"
+        message="Starting Docker volume backups [🚀]:\n"
+        for volume in "${docker_volumes_to_backup[@]}"; do
+            message+="  - $volume\n"
+        done
+        send_telegram_notification "$message"
     fi
     echo
 
@@ -311,7 +320,11 @@ cleanup_old_backups() {
         done
 
         if [ "$telegram_send_failure" = true ]; then
-            send_telegram_notification "$(printf "Failed to delete backup files [❌]:\n%s" "$(printf "  - %s\n" "${failed_deleted_files[@]}")")"
+            message="Failed to delete the following backup files [❌]:\n"
+            for item in "${failed_deleted_files[@]}"; do
+                message+="  - $item\n"
+            done
+            send_telegram_notification "$message"
         fi
     fi
 }
