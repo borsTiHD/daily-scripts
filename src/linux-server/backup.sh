@@ -327,32 +327,32 @@ report_info() {
             report+="  - $item\n"
         done
     else
-        report+="No succeeded backups - [❌]\n"
+        report+="No succeeded backups: [❌]\n"
     fi
 
     # Log failed backups
-    report+="\n"
     if ((${#failed_backups[@]} > 0)); then
+        report+="\n"
         report+="Failed backups: [❌]\n"
         for item in "${failed_backups[@]}"; do
             report+="  - $item\n"
         done
     else
-        report+="No failed backups - [✅]\n"
+        report+="No failed backups: [✅]\n"
     fi
 
     # Log cleanup status
-    report+="\n"
     if [ "$delete_old_backups" = true ]; then
         if [ "$deletion_failed" = false ]; then
             # Log succeeded deleted files
+            report+="\n"
             if ((${#succeeded_deleted_files[@]} > 0)); then
                 report+="Deleted old backups: [✅]\n"
                 for item in "${succeeded_deleted_files[@]}"; do
                     report+="  - $item\n"
                 done
             else
-                report+="No old backups deleted: [✅]\n"
+                report+="No old backups deleted: [ℹ️]\n"
             fi
 
             # Log failed deleted files
@@ -362,7 +362,7 @@ report_info() {
                     report+="  - $item\n"
                 done
             else
-                report+="No failed old backups deleted: [✅]\n"
+                report+="Cleanup of old backups was successful (or there was nothing to delete): [ℹ️]\n"
             fi
         else
             report+="Failed to delete old backups: [❌]\n"
