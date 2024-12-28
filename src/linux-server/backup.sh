@@ -378,7 +378,7 @@ report_info() {
     # Send report to telegram if enabled
     if [ "$telegram_send_report" = true ]; then
         send_telegram_notification "$report"
-    }
+    fi
 }
 
 # Main process
