@@ -7,33 +7,38 @@
 #
 ####################################
 
-# Konfiguration für den Telegram-Bot
+# Configuration for the Telegram bot
 TELEGRAM_BOT_TOKEN="YOUR_TELEGRAM_BOT_TOKEN"
 CHAT_ID="YOUR_TELEGRAM_CHAT_ID"
 
-# Funktion zum Versenden einer Nachricht über den Telegram-Bot
+# Function to send a message via the Telegram bot
 send_telegram_message() {
     message="$1"
     curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage -d chat_id=$CHAT_ID -d text="$message"
 }
 
-# Hauptfunktion zum Sammeln von SSH-Login-Informationen und Versenden über Telegram
+# Main function to collect SSH login information and send it via Telegram
 main() {
-    # Benutzername des eingeloggten Benutzers
+    # Username of the logged-in user
     username=$(whoami)
 
-    # IP-Adresse des eingeloggten Benutzers
+    # Exception for the user "www-data"
+    if [ "$username" == "www-data" ]; then
+        exit 0
+    fi
+
+    # IP address of the logged-in user
     ip_address=$(echo $SSH_CONNECTION | awk '{print $1}')
 
-    # Zeitpunkt des Logins
+    # Login time
     login_time=$(date)
 
-    # Nachricht mit den gesammelten Informationen
-    message="[F4P] 🤖 - SSH-Login: ✅ Benutzer: $username, IP-Adresse: $ip_address, Zeitpunkt: $login_time"
+    # Message with the collected information
+    message="[F4P] 🤖 - SSH Login: ✅ User: $username, IP Address: $ip_address, Time: $login_time"
 
-    # Nachricht über Telegram-Bot senden
+    # Send message via Telegram bot
     send_telegram_message "$message"
 }
 
-# Aufruf der Hauptfunktion
+# Call the main function
 main
