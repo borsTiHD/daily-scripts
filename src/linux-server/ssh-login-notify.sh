@@ -20,7 +20,8 @@ send_telegram_message() {
 # Main function to collect SSH login information and send it via Telegram
 main() {
     # Username of the logged-in user
-    username=$(whoami)
+    username=$(who | awk '{print $1}')
+    username2=$(whoami)
 
     # Exception for the user "www-data"
     if [ "$username" == "www-data" ]; then
@@ -34,7 +35,7 @@ main() {
     login_time=$(date)
 
     # Message with the collected information
-    message="[F4P] 🤖 - SSH Login: ✅ User: $username, IP Address: $ip_address, Time: $login_time"
+    message="[F4P] 🤖 - SSH Login: ✅ User: $username, 👻 WhoAmI: $username2, IP Address: $ip_address, Time: $login_time"
 
     # Send message via Telegram bot
     send_telegram_message "$message"
