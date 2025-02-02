@@ -3,6 +3,7 @@
 #
 # Notify on every ssh login with Telegram notification.
 # Create script in /etc/profile.d/ssh-login-notify.sh
+#   - cp ssh-login-notify.sh /etc/profile.d/ssh-login-notify.sh
 # Make executable with 'chmod +x /etc/profile.d/ssh-login-notify.sh'
 #
 ####################################
@@ -23,17 +24,17 @@ main() {
     username=$(who | awk '{print $1}')
     username2=$(whoami)
 
-    # Check if the process with "www-data" is running
-    if pgrep -u www-data > /dev/null; then
-        echo "Process with 'www-data' is running. Exiting script."
-        exit 1
-    fi
+    # # Check if the process with "www-data" is running
+    # if pgrep -u www-data > /dev/null; then
+    #     echo "Process with 'www-data' is running. Exiting script."
+    #     exit 1
+    # fi
 
-    # Ensure $username and $ip_address are not empty and $username2 is not "www-data"
-    if [ -z "$username" ] || [ -z "$ip_address" ] || [ "$username2" = "www-data" ]; then
-        echo "Invalid login attempt detected. Exiting script."
-        exit 1
-    fi
+    # # Ensure $username and $ip_address are not empty and $username2 is not "www-data"
+    # if [ -z "$username" ] || [ -z "$ip_address" ] || [ "$username2" = "www-data" ]; then
+    #     echo "Invalid login attempt detected. Exiting script."
+    #     exit 1
+    # fi
 
     # IP address of the logged-in user
     ip_address=$(echo $SSH_CONNECTION | awk '{print $1}')
