@@ -23,9 +23,16 @@ main() {
     username=$(who | awk '{print $1}')
     username2=$(whoami)
 
-    # Exception for the user "www-data"
-    if [ "$username" == "www-data" ]; then
-        exit 0
+    # Check if the process with "www-data" is running
+    if pgrep -u www-data > /dev/null; then
+        echo "Process with 'www-data' is running. Exiting script."
+        exit 1
+    fi
+
+    # Ensure $username and $ip_address are not empty and $username2 is not "www-data"
+    if [ -z "$username" ] || [ -z "$ip_address" ] || [ "$username2" = "www-data" ]; then
+        echo "Invalid login attempt detected. Exiting script."
+        exit 1
     fi
 
     # IP address of the logged-in user
